@@ -19,7 +19,7 @@ module Vanity
         @host, @port, @db = options.values_at(:host, :port, :db)
       else
         require "vanity/store/#{adapter}"
-        @redis = Vanity::Store.const_get(adapter.to_s.capitalize).new
+        @redis = Vanity::Store.const_get(adapter.to_s.classify).new
       end
       @load_path = options[:load_path]
       @namespace = "vanity:#{Vanity::Version::MAJOR}"

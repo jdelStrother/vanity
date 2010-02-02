@@ -2,6 +2,7 @@ $LOAD_PATH.delete_if { |path| path[/gems\/vanity-\d/] }
 $LOAD_PATH.unshift File.expand_path("../lib", File.dirname(__FILE__))
 RAILS_ROOT = File.expand_path("..")
 require "test/unit"
+require 'rubygems'
 require "mocha"
 require "action_controller"
 require "action_controller/test_case"
@@ -26,10 +27,10 @@ when "REDIS"
   $adapter = :redis
 when "AR"
   puts "Using ActiveRecord store"
-  require "vanity/store/activerecord"
+  require "vanity/store/active_record"
   $redis = Vanity::Store::ActiveRecord.new
   $redis.connection.execute "CREATE TABLE vanity_hash (key VARCHAR(255) NOT NULL, value TEXT, PRIMARY KEY('key'))" rescue nil
-  $adapter = :activerecord
+  $adapter = :active_record
 when nil
   require "vanity/store/mock"
   $redis = Vanity::Store::Mock.new
