@@ -100,34 +100,6 @@ ActionController::Routing::Routes.draw do |map|
 end
 
 
-# Call this to define aggregate functions not available in SQlite.
-class ActiveRecord::Base
-  def self.aggregates
-    connection.raw_connection.create_aggregate("minimum", 1) do
-      step do |func, value|
-        func[:minimum] = value.to_i unless func[:minimum] && func[:minimum].to_i < value.to_i
-      end
-      finalize { |func| func.result = func[:minimum] }
-    end
-
-    connection.raw_connection.create_aggregate("maximum", 1) do
-      step do |func, value|
-        func[:maximum] = value.to_i unless func[:maximum] && func[:maximum].to_i > value.to_i
-      end
-      finalize { |func| func.result = func[:maximum] }
-    end
-
-    connection.raw_connection.create_aggregate("average", 1) do
-      step do |func, value|
-        func[:total] = func[:total].to_i + value.to_i
-        func[:count] = func[:count].to_i + 1
-      end
-      finalize { |func| func.result = func[:total].to_i / func[:count].to_i }
-    end
-  end
-end
-
-
 class Array
   # Not in Ruby 1.8.6.
   unless method_defined?(:shuffle)

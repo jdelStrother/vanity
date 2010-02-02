@@ -341,7 +341,6 @@ context "Metric" do
     end
 
     test "record average" do
-      Sky.aggregates
       File.open "tmp/experiments/metrics/sky_is_limit.rb", "w" do |f|
         f.write <<-RUBY
           metric "Sky is limit" do
@@ -356,7 +355,6 @@ context "Metric" do
     end
 
     test "record minimum" do
-      Sky.aggregates
       File.open "tmp/experiments/metrics/sky_is_limit.rb", "w" do |f|
         f.write <<-RUBY
           metric "Sky is limit" do
@@ -371,7 +369,6 @@ context "Metric" do
     end
 
     test "record maximum" do
-      Sky.aggregates
       File.open "tmp/experiments/metrics/sky_is_limit.rb", "w" do |f|
         f.write <<-RUBY
           metric "Sky is limit" do
@@ -407,7 +404,6 @@ context "Metric" do
     end
 
     test "with scope" do
-      Sky.aggregates
       File.open "tmp/experiments/metrics/sky_is_limit.rb", "w" do |f|
         f.write <<-RUBY
           metric "Sky is limit" do
