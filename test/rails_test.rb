@@ -15,7 +15,7 @@ class UseVanityTest < ActionController::TestCase
   def setup
     super
     metric :sugar_high
-    Vanity.playground.define :pie_or_cake, :ab_test do
+    new_ab_test :pie_or_cake do
       metrics :sugar_high
     end
     UseVanityController.class_eval do
@@ -70,6 +70,31 @@ class UseVanityTest < ActionController::TestCase
     @controller.project_id = "576"
     get :index
     assert_equal "576", @controller.send(:vanity_identity)
+  end
+
+  # query parameter filter
+
+  def test_redirects_and_loses_vanity_query_parameter
+    get :index, :foo=>"bar", :_vanity=>"567"
+    assert_redirected_to "/use_vanity?foo=bar"
+  end
+
+  def test_sets_choices_from_vanity_query_parameter
+    first = experiment(:pie_or_cake).alternatives.first
+    # experiment(:pie_or_cake).fingerprint(first)
+    10.times do
+      @controller = nil ; setup_controller_request_and_response
+      get :index, :_vanity=>"aae9ff8081"
+      assert !experiment(:pie_or_cake).choose
+      assert experiment(:pie_or_cake).showing?(first)
+    end
+  end
+
+  def test_does_nothing_with_vanity_query_parameter_for_posts
+    first = experiment(:pie_or_cake).alternatives.first
+    post :index, :foo=>"bar", :_vanity=>"567"
+    assert_response :success
+    assert !experiment(:pie_or_cake).showing?(first)
   end
 
   def teardown

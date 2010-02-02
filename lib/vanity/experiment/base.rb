@@ -15,11 +15,16 @@ module Vanity
       # Defines a new experiment, given the experiment's name, type and
       # definition block.
       def define(name, type, options = nil, &block)
-        playground.define(name, type, options || {}, &block)
+        fail "Experiment #{@experiment_id} already defined in playground" if playground.experiments[@experiment_id]
+        klass = Experiment.const_get(type.to_s.gsub(/\/(.?)/) { "::#{$1.upcase}" }.gsub(/(?:^|_)(.)/) { $1.upcase })
+        experiment = klass.new(playground, @experiment_id, name, options)
+        experiment.instance_eval &block
+        experiment.save
+        playground.experiments[@experiment_id] = experiment
       end
 
-      def binding_with(playground)
-        @playground = playground
+      def new_binding(playground, id)
+        @playground, @experiment_id = playground, id
         binding
       end
 
@@ -37,16 +42,16 @@ module Vanity
         end
 
         # Playground uses this to load experiment definitions.
-        def load(playground, stack, path, id)
-          fn = File.join(path, "#{id}.rb")
-          fail "Circular dependency detected: #{stack.join('=>')}=>#{fn}" if stack.include?(fn)
-          source = File.read(fn)
-          stack.push fn
+        def load(playground, stack, file)
+          fail "Circular dependency detected: #{stack.join('=>')}=>#{file}" if stack.include?(file)
+          source = File.read(file)
+          stack.push file
+          id = File.basename(file, ".rb").downcase.gsub(/\W/, "_").to_sym
           context = Object.new
           context.instance_eval do
             extend Definition
-            experiment = eval(source, context.binding_with(playground), fn)
-            fail NameError.new("Expected #{fn} to define experiment #{id}", id) unless experiment.id == id
+            experiment = eval(source, context.new_binding(playground, id), file)
+            fail NameError.new("Expected #{file} to define experiment #{id}", id) unless playground.experiments[id]
             experiment
           end
         rescue
@@ -59,12 +64,12 @@ module Vanity
 
       end
 
-      def initialize(playground, id, name, options, &block)
+      def initialize(playground, id, name, options = nil)
         @playground = playground
         @id, @name = id.to_sym, name
         @options = options || {}
         @namespace = "#{@playground.namespace}:#{@id}"
-        @identify_block = lambda { |context| context.vanity_identity }
+        @identify_block = method(:default_identify)
       end
 
       # Human readable experiment name (first argument you pass when creating a
@@ -104,11 +109,6 @@ module Vanity
         @identify_block = block
       end
 
-      def identity
-        @identify_block.call(Vanity.context)
-      end
-      protected :identity
-
 
       # -- Reporting --
 
@@ -135,19 +135,6 @@ module Vanity
         raise "complete_if already called on this experiment" if @complete_block
         @complete_block = block
       end
-
-      # Derived classes call this after state changes that may lead to
-      # experiment completing.
-      def check_completion!
-        if @complete_block
-          begin
-            complete! if @complete_block.call
-          rescue
-            # TODO: logging
-          end
-        end
-      end
-      protected :check_completion!
 
       # Force experiment to complete.
       def complete!
@@ -184,6 +171,28 @@ module Vanity
 
     protected
 
+      def identity
+        @identify_block.call(Vanity.context)
+      end
+
+      def default_identify(context)
+        raise "No Vanity.context" unless context
+        raise "Vanity.context does not respond to vanity_identity" unless context.respond_to?(:vanity_identity)
+        context.vanity_identity or raise "Vanity.context.vanity_identity - no identity"
+      end
+
+      # Derived classes call this after state changes that may lead to
+      # experiment completing.
+      def check_completion!
+        if @complete_block
+          begin
+            complete! if @complete_block.call
+          rescue
+            # TODO: logging
+          end
+        end
+      end
+      
       # Returns key for this experiment, or with an argument, return a key
       # using the experiment as the namespace.  Examples:
       #   key => "vanity:experiments:green_button"

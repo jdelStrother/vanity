@@ -25,15 +25,14 @@ module Vanity
 
       # Defines a new metric, using the class Vanity::Metric.
       def metric(name, &block)
-        id = File.basename(caller.first.split(":").first, ".rb").downcase.gsub(/\W/, "_").to_sym
-        fail "Metric #{id} already defined in playground" if playground.metrics[id]
-        metric = Metric.new(playground, name.to_s, id)
+        fail "Metric #{@metric_id} already defined in playground" if playground.metrics[@metric_id]
+        metric = Metric.new(playground, name.to_s, @metric_id)
         metric.instance_eval &block
-        playground.metrics[id] = metric
+        playground.metrics[@metric_id] = metric
       end
 
-      def binding_with(playground)
-        @playground = playground
+      def new_binding(playground, id)
+        @playground, @metric_id = playground, id
         binding
       end
 
@@ -101,7 +100,7 @@ module Vanity
         context = Object.new
         context.instance_eval do
           extend Definition
-          metric = eval(source, context.binding_with(playground), file)
+          metric = eval(source, context.new_binding(playground, id), file)
           fail NameError.new("Expected #{file} to define metric #{id}", id) unless playground.metrics[id]
           metric
         end
@@ -194,70 +193,6 @@ module Vanity
     # array of measurements.  All metrics must implement this method.
     def values(from, to)
       redis.mget((from.to_date..to.to_date).map { |date| key(date, "count") }).map(&:to_i)
-    end
-
-
-    # -- ActiveRecord support --
-
-    AGGREGATES = [:average, :minimum, :maximum, :sum]
-
-    # Use an ActiveRecord model to get metric data from database table.  Also
-    # forwards @after_create@ callbacks to hooks (updating experiments).
-    #
-    # Supported options:
-    # :conditions -- Only select records that match this condition
-    # :average -- Metric value is average of this column
-    # :minimum -- Metric value is minimum of this column
-    # :maximum -- Metric value is maximum of this column
-    # :sum -- Metric value is sum of this column
-    # :timestamp -- Use this column to filter/group records (defaults to
-    # +created_at+)
-    #
-    # @example Track sign ups using User model
-    #   metric "Signups" do
-    #     model Account
-    #   end
-    # @example Track satisfaction using Survey model
-    #   metric "Satisfaction" do
-    #     model Survey, :average=>:rating
-    #   end
-    # @example Track only high ratings
-    #   metric "High ratings" do
-    #     model Rating, :conditions=>["stars >= 4"]
-    #   end
-    # @example Track only high ratings (using scope)
-    #   metric "High ratings" do
-    #     model Rating.high
-    #   end
-    #
-    # @since 1.2.0
-    def model(class_or_scope, options = nil)
-      options = (options || {}).clone
-      conditions = options.delete(:conditions)
-      scoped = conditions ? class_or_scope.scoped(:conditions=>conditions) : class_or_scope
-      aggregate = AGGREGATES.find { |key| options.has_key?(key) }
-      column = options.delete(aggregate)
-      fail "Cannot use multiple aggregates in a single metric" if AGGREGATES.find { |key| options.has_key?(key) }
-      timestamp = options.delete(:timestamp) || :created_at
-      fail "Unrecognized options: #{options.keys * ", "}" unless options.empty?
-
-      # Hook into model's after_create
-      scoped.after_create do |record|
-        count = column ? (record.send(column) || 0) : 1
-        call_hooks record.send(timestamp), count if count > 0 && scoped.exists?(record)
-      end
-      # Redefine values method to perform query
-      eigenclass = class << self ; self ; end
-      eigenclass.send :define_method, :values do |sdate, edate|
-        query = { :conditions=>{ timestamp=>(sdate.to_time...(edate + 1).to_time) }, :group=>"date(#{scoped.connection.quote_column_name timestamp})" }
-        grouped = column ? scoped.calculate(aggregate, column, query) : scoped.count(query)
-        (sdate..edate).inject([]) { |ordered, date| ordered << (grouped[date.to_s] || 0) }
-      end
-      # Redefine track! method to call on hooks
-      eigenclass.send :define_method, :track! do |*args|
-        count = args.first || 1
-        call_hooks Time.now, count if count > 0
-      end
     end
 
 

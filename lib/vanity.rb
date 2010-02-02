@@ -1,8 +1,9 @@
-$LOAD_PATH.unshift File.join(File.dirname(__FILE__), "../vendor/redis-rb/lib")
-require "redis"
 require "date"
 require "time"
 require "logger"
+
+$LOAD_PATH << File.join(File.dirname(__FILE__), "../vendor/redis-rb/lib")
+autoload :Redis, "redis"
 
 # All the cool stuff happens in other places.
 # @see Vanity::Helper
@@ -22,9 +23,14 @@ module Vanity
 end
 
 require "vanity/backport" if RUBY_VERSION < "1.9"
-require "vanity/metric"
+# Metrics.
+require "vanity/metric/base"
+require "vanity/metric/active_record"
+require "vanity/metric/google_analytics" if defined?(Garb)
+# Experiments.
 require "vanity/experiment/base"
 require "vanity/experiment/ab_test"
+# Playground.
 require "vanity/playground"
 require "vanity/helpers"
 Vanity.autoload :MockRedis, "vanity/mock_redis"

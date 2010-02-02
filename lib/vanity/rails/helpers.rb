@@ -18,7 +18,9 @@ module Vanity
   #     . . .
   #   end
   module Rails
-    module ClassMethods
+    module UseVanity
+
+    protected
 
       # Defines the vanity_identity method and the set_identity_context filter.
       #
@@ -43,27 +45,80 @@ module Vanity
       #     use_vanity { |controller| controller.params[:project_id] }
       #   end
       def use_vanity(symbol = nil, &block)
-        define_method :vanity_identity do
-          return @vanity_identity if @vanity_identity
-          if block
-            @vanity_identity = block.call(self)
-          elsif symbol && object = send(symbol)
-            @vanity_identity = object.id
-          elsif response # everyday use
-            @vanity_identity = cookies["vanity_id"] || ActiveSupport::SecureRandom.hex(16)
-            cookies["vanity_id"] = { :value=>@vanity_identity, :expires=>1.month.from_now }
-            @vanity_identity
-          else # during functional testing
-            @vanity_identity = "test"
+        if block
+          define_method(:vanity_identity) { block.call(self) }
+        else
+          define_method :vanity_identity do
+            return @vanity_identity if @vanity_identity
+            if symbol && object = send(symbol)
+              @vanity_identity = object.id
+            elsif response # everyday use
+              @vanity_identity = cookies["vanity_id"] || ActiveSupport::SecureRandom.hex(16)
+              cookies["vanity_id"] = { :value=>@vanity_identity, :expires=>1.month.from_now }
+              @vanity_identity
+            else # during functional testing
+              @vanity_identity = "test"
+            end
           end
         end
-        define_method :set_vanity_context do
-          Vanity.context = self
-        end
-        before_filter :set_vanity_context
-        before_filter { Vanity.playground.reload! } unless ::Rails.configuration.cache_classes
+        around_filter :vanity_context_filter
+        before_filter :vanity_reload_filter unless ::Rails.configuration.cache_classes
+        before_filter :vanity_query_parameter_filter
       end
+
     end
+
+    module Filters
+    protected
+
+      # Around filter that sets Vanity.context to controller.
+      def vanity_context_filter
+        previous, Vanity.context = Vanity.context, self
+        yield
+      ensure
+        Vanity.context = previous
+      end
+
+      # This filter allows user to choose alternative in experiment using query
+      # parameter.
+      #
+      # Each alternative has a unique fingerprint (run vanity list command to
+      # see them all).  A request with the _vanity query parameter is
+      # intercepted, the alternative is chosen, and the user redirected to the
+      # same request URL sans _vanity parameter.  This only works for GET
+      # requests.
+      # 
+      # For example, if the user requests the page
+      # http://example.com/?_vanity=2907dac4de, the first alternative of the
+      # :null_abc experiment is chosen and the user redirected to
+      # http://example.com/.
+      def vanity_query_parameter_filter
+        if request.get? && params[:_vanity]
+          hashes = Array(params.delete(:_vanity))
+          Vanity.playground.experiments.each do |id, experiment|
+            if experiment.respond_to?(:alternatives)
+              experiment.alternatives.each do |alt|
+                if hash = hashes.delete(experiment.fingerprint(alt)) 
+                  experiment.chooses alt.value
+                  break
+                end
+              end
+            end
+            break if hashes.empty?
+          end
+          redirect_to url_for(params)
+        end
+      end
+
+      # Before filter to reload Vanity experiments/metrics.  Enabled when
+      # cache_classes is false (typically, testing environment).
+      def vanity_reload_filter
+        Vanity.playground.reload!
+      end
+
+    end
+
+    module Helpers
 
     # This method returns one of the alternative values in the named A/B test.
     #
@@ -95,6 +150,8 @@ module Vanity
       else
         value
       end
+    end
+
     end
 
   end
