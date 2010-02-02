@@ -11,7 +11,7 @@ module Vanity
 
     # Created new Playground. Unless you need to, use the global Vanity.playground.
     def initialize(options = {})
-      options = options.merge(DEFAULTS)
+      options = DEFAULTS.merge(options)
       adapter = options[:adapter] || options[:redis] || :redis
       if adapter.respond_to?(:mget)
         @redis = adapter
