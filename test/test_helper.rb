@@ -20,6 +20,8 @@ else
   $logger = Logger.new("/dev/null")
 end
 
+ActiveRecord::Base.logger = $logger
+ActiveRecord::Base.establish_connection :adapter=>"sqlite3", :database=>File.expand_path("database.sqlite")
 
 case store = ENV["STORE"]
 when "REDIS"
@@ -98,8 +100,6 @@ ActionController::Routing::Routes.draw do |map|
 end
 
 
-ActiveRecord::Base.logger = $logger
-ActiveRecord::Base.establish_connection :adapter=>"sqlite3", :database=>File.expand_path("database.sqlite")
 # Call this to define aggregate functions not available in SQlite.
 class ActiveRecord::Base
   def self.aggregates
