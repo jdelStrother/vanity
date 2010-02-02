@@ -42,9 +42,9 @@ module Vanity
 
       def incrby(key, incr)
         if value = get(key)
-          execute("UPDATE `#{table_name}` SET `value`=? WHERE `key`=?", value.to_i + incr, key) or incrby(key, incr)
+          execute("UPDATE `#{table_name}` SET `value`=? WHERE `key`=?", value.to_i + incr, key)
         else
-          execute("INSERT INTO `#{table_name}` (`key`, `value`) VALUES (?,?)", key, incr) or incrby(key, incr)
+          execute("INSERT INTO `#{table_name}` (`key`, `value`) VALUES (?,?)", key, incr)
         end
       end
 
