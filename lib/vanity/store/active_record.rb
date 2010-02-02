@@ -7,7 +7,7 @@ module Vanity
       end
 
       def connection
-        @connection ||= ::ActiveRecord::Base.connection
+        ::ActiveRecord::Base.connection
       end
       
       def create_table!
