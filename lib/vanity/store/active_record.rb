@@ -9,6 +9,13 @@ module Vanity
       def connection
         @connection ||= ::ActiveRecord::Base.connection
       end
+      
+      def create_table!
+        execute "CREATE TABLE '#{table_name}' (key VARCHAR(255) NOT NULL, value TEXT, PRIMARY KEY('key'))"
+      end
+      def drop_table!
+        execute "DROP TABLE '#{table_name}'"
+      end
 
       def table_name
         @table_name ||= "vanity_hash"

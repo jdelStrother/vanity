@@ -31,7 +31,7 @@ when "AR"
   puts "Using ActiveRecord store"
   require "vanity/store/active_record"
   $redis = Vanity::Store::ActiveRecord.new
-  $redis.connection.execute "CREATE TABLE vanity_hash (key VARCHAR(255) NOT NULL, value TEXT, PRIMARY KEY('key'))" rescue nil
+  $redis.create_table! rescue nil
   $adapter = :active_record
 when nil
   require "vanity/store/mock"
