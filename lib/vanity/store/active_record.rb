@@ -11,10 +11,10 @@ module Vanity
       end
       
       def create_table!
-        execute "CREATE TABLE '#{table_name}' (key VARCHAR(255) NOT NULL, value TEXT, PRIMARY KEY('key'))"
+        execute "CREATE TABLE `#{table_name}` (`key` VARCHAR(255) NOT NULL, `value` TEXT, PRIMARY KEY(`key`))"
       end
       def drop_table!
-        execute "DROP TABLE '#{table_name}'"
+        execute "DROP TABLE `#{table_name}`"
       end
 
       def table_name
@@ -22,29 +22,29 @@ module Vanity
       end
 
       def get(key)
-        select_value("SELECT value FROM #{table_name} WHERE key=?", key)
+        select_value("SELECT value FROM `#{table_name}` WHERE `key`=?", key)
       end
       alias :[] :get
 
       def setnx(key, value)
-        execute "INSERT INTO #{table_name} (key, value) VALUES (?,?)", key, value rescue nil
+        execute "INSERT INTO `#{table_name}` (`key`, `value`) VALUES (?,?)", key, value rescue nil
       end
 
       def set(key, value)
-        execute("INSERT INTO #{table_name} (key, value) VALUES (?,?)", key, value) rescue
-        execute("UPDATE #{table_name} SET value=? WHERE key=?", value, key)
+        execute("INSERT INTO `#{table_name}` (`key`, `value`) VALUES (?,?)", key, value) rescue
+        execute("UPDATE `#{table_name}` SET `value`=? WHERE `key`=?", value, key)
       end
       alias :[]= :set
 
       def del(*keys)
-        execute "DELETE FROM #{table_name} WHERE key IN (?)", keys.flatten
+        execute "DELETE FROM `#{table_name}` WHERE `key` IN (?)", keys.flatten
       end
 
       def incrby(key, incr)
         if value = get(key)
-          execute("UPDATE #{table_name} SET value=? WHERE key=?", value.to_i + incr, key) or incrby(key, incr)
+          execute("UPDATE `#{table_name}` SET `value`=? WHERE `key`=?", value.to_i + incr, key) or incrby(key, incr)
         else
-          execute("INSERT INTO #{table_name} (key, value) VALUES (?,?)", key, incr) or incrby(key, incr)
+          execute("INSERT INTO `#{table_name}` (`key`, `value`) VALUES (?,?)", key, incr) or incrby(key, incr)
         end
       end
 
@@ -53,21 +53,21 @@ module Vanity
       end
 
       def mget(keys)
-        hash = select_rows("SELECT key, value FROM #{table_name} WHERE key IN (?)", keys).
+        hash = select_rows("SELECT `key`, `value` FROM `#{table_name}` WHERE `key` IN (?)", keys).
           inject({}) { |hash, (key, value)| hash.update(key=>value) }
         keys.map { |key| hash[key] }
       end
 
       def exists(key)
-        select_value("SELECT 1 FROM #{table_name} WHERE key = ?", key) && true
+        select_value("SELECT 1 FROM `#{table_name}` WHERE `key` = ?", key) && true
       end
 
       def keys(pattern)
-        select_values("SELECT key FROM #{table_name} WHERE key LIKE ?", pattern.gsub("*", "%"))
+        select_values("SELECT `key` FROM `#{table_name}` WHERE `key` LIKE ?", pattern.gsub("*", "%"))
       end
 
       def flushdb
-        execute "DELETE FROM #{table_name}"
+        execute "DELETE FROM `#{table_name}`"
       end
 
       def sismember(key, value)
