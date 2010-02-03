@@ -50,6 +50,13 @@ And:
   vanity --output vanity.html
 
 
+== Using an ActiveRecord store
+
+By default, Vanity uses Redis to store its data.  It is possible to use a ActiveRecord database store by adding a custom initializer: 
+
+  Vanity.playground = Vanity::Playground.new(:adapter => :active_record)
+
+
 == Building From Source
 
 To run the test suite for the first time:
