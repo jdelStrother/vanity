@@ -17,6 +17,10 @@ Rails.configuration.after_initialize do
   # Do this at the very end of initialization, allowing test environment to do
   # Vanity.playground.mock! before any database access takes place.
   Rails.configuration.after_initialize do
-    Vanity.playground.load!
+    begin
+      Vanity.playground.load!
+    rescue
+      Vanity.playground.logger.error("Failed to load Vanity playground : #{$!.message}")
+    end
   end
 end
