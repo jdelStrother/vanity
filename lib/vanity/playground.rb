@@ -342,8 +342,6 @@ module Vanity
 
   end
 
-  # In the case of Rails, use the Rails logger and collect only for
-  # production environment by default.
   class << self
 
     # The playground instance.
